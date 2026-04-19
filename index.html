@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GasStream - Web Streaming Gratis</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { background-color: #141414; color: white; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        .movie-card:hover { transform: scale(1.05); transition: all 0.3s ease-in-out; cursor: pointer; }
+        /* Efek scrollbar keren */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #141414; }
+        ::-webkit-scrollbar-thumb { background: #E50914; border-radius: 4px; }
+    </style>
+</head>
+<body class="antialiased">
+
+    <nav class="p-4 bg-black/90 sticky top-0 z-50 backdrop-blur-md shadow-lg flex justify-between items-center">
+        <h1 class="text-2xl md:text-3xl font-black text-red-600 tracking-wider">GAS<span class="text-white">STREAM</span></h1>
+        <div class="text-sm text-gray-400">By GitHub Pages</div>
+    </nav>
+
+    <div id="player-section" class="hidden w-full max-w-5xl mx-auto mt-6 p-4 bg-gray-900/80 rounded-xl shadow-2xl border border-gray-800">
+        <div class="flex justify-between items-center mb-4">
+            <h2 id="movie-title" class="text-xl md:text-2xl font-bold text-white">Memuat...</h2>
+            <button onclick="closePlayer()" class="px-4 py-2 bg-red-600 hover:bg-red-700 rounded-md text-white font-bold text-sm transition-colors">✕ Tutup</button>
+        </div>
+        
+        <div class="relative pb-[56.25%] h-0 overflow-hidden rounded-lg bg-black">
+            <iframe id="video-frame" class="absolute top-0 left-0 w-full h-full" src="" frameborder="0" allowfullscreen></iframe>
+        </div>
+        <p class="text-xs text-gray-500 mt-3 text-center">Server video disediakan oleh pihak ketiga (API eksternal).</p>
+    </div>
+
+    <main class="p-4 md:p-8 max-w-7xl mx-auto">
+        <h2 class="text-xl md:text-2xl font-semibold mb-6 border-l-4 border-red-600 pl-3">🔥 Film Populer Hari Ini</h2>
+        
+        <div id="movie-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 md:gap-6">
+            <div class="col-span-full text-center py-10 text-gray-400 animate-pulse">
+                Menarik data dari API...
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // 1. Konfigurasi API TMDB
+        // IDEALNYA: Daftar di themoviedb.org untuk dapat API Key sendiri.
+        // Tapi untuk tes sekarang, saya pinjamkan default demo key sementara.
+        const TMDB_API_KEY = '15d2ea6d0dc1d476efbca3eba2b9bbfb'; 
+        const BASE_URL = 'https://api.themoviedb.org/3';
+        const IMG_URL = 'https://image.tmdb.org/t/p/w500';
+
+        // Fungsi untuk mengambil data film trending dari TMDB
+        async function getMovies() {
+            try {
+                // Mengambil data film populer dengan bahasa Indonesia (jika ada deskripsinya)
+                const res = await fetch(`${BASE_URL}/trending/movie/day?api_key=${TMDB_API_KEY}&language=id-ID`);
+                const data = await res.json();
+                renderMovies(data.results);
+            } catch (error) {
+                document.getElementById('movie-grid').innerHTML = '<p class="text-red-500 col-span-full text-center">Gagal menyambung ke server TMDB.</p>';
+            }
+        }
+
+        // Fungsi untuk merender daftar film ke dalam bentuk Grid HTML
+        function renderMovies(movies) {
+            const grid = document.getElementById('movie-grid');
+            grid.innerHTML = ''; // Hapus teks loading
+
+            movies.forEach(movie => {
+                // Hanya tampilkan jika film punya poster
+                if(movie.poster_path) {
+                    const card = document.createElement('div');
+                    card.className = 'movie-card bg-gray-800 rounded-xl overflow-hidden shadow-md border border-gray-700 relative';
+                    
+                    // Saat kartu diklik, jalankan fungsi playMovie
+                    card.onclick = () => playMovie(movie.id, movie.title || movie.name);
+
+                    // Rating badge
+                    const rating = movie.vote_average ? movie.vote_average.toFixed(1) : 'N/A';
+
+                    card.innerHTML = `
+                        <div class="relative">
+                            <img src="${IMG_URL + movie.poster_path}" alt="${movie.title}" class="w-full h-auto object-cover" loading="lazy">
+                            <div class="absolute top-2 right-2 bg-black/80 text-yellow-400 text-xs font-bold px-2 py-1 rounded">⭐ ${rating}</div>
+                        </div>
+                        <div class="p-3">
+                            <h3 class="text-sm md:text-base font-bold text-white truncate">${movie.title || movie.name}</h3>
+                            <p class="text-xs text-gray-400 mt-1 truncate">Rilis: ${movie.release_date || 'Unknown'}</p>
+                        </div>
+                    `;
+                    grid.appendChild(card);
+                }
+            });
+        }
+
+        // Fungsi untuk menembak API Iframe Video
+        function playMovie(tmdbId, title) {
+            const playerSection = document.getElementById('player-section');
+            const videoFrame = document.getElementById('video-frame');
+            const titleElement = document.getElementById('movie-title');
+
+            // Buka section player
+            playerSection.classList.remove('hidden');
+            titleElement.innerText = title;
+            
+            // 2. NEMBAK API VIDEO GRATISAN (Vidsrc)
+            // Ini otomatis mencari sumber video mp4/m3u8 di database mereka berdasarkan ID TMDB
+            const iframeApiUrl = `https://vidsrc.me/embed/movie?tmdb=${tmdbId}`;
+            
+            videoFrame.src = iframeApiUrl;
+
+            // Efek auto-scroll halus ke bagian video
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        // Fungsi mematikan video
+        function closePlayer() {
+            const playerSection = document.getElementById('player-section');
+            const videoFrame = document.getElementById('video-frame');
+            
+            playerSection.classList.add('hidden');
+            videoFrame.src = ""; // Kosongkan iframe agar video/audio berhenti muter
+        }
+
+        // Eksekusi fungsi pertama kali web dimuat
+        getMovies();
+    </script>
+</body>
+</html>
